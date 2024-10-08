@@ -8,12 +8,20 @@
     
     <!-- Estilos e Bibliotecas CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Select2 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <!-- DataTables CSS -->
+    <link href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css" rel="stylesheet" />
     
     <!-- Bibliotecas JavaScript -->
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.0/papaparse.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Select2 JS -->
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <!-- Bootstrap Bundle JS (inclui Popper) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- DataTables JS -->
+    <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
     
     <!-- Estilos Personalizados -->
     <style>
@@ -120,6 +128,16 @@
         .table-striped tbody tr:nth-of-type(odd) {
             background-color: rgba(0,123,255,.05);
         }
+
+        /* Estilização personalizada para o campo de busca do DataTables */
+        .dataTables_filter label {
+            width: 100%;
+        }
+        .dataTables_filter input {
+            width: 50% !important; /* Aumenta a largura do textbox */
+            display: inline-block;
+            margin-left: 10px;
+        }
     </style>
 </head>
 <body>
@@ -219,6 +237,7 @@
                             <th>Nº DFD</th>
                             <th>Nome Classe/Grupo</th>
                             <th>Código Classe/Grupo</th>
+                            <th>Valor Total</th> <!-- Renomeado -->
                             <th>Identificador da Futura Contratação</th>
                         </tr>
                     </thead>
@@ -261,6 +280,9 @@
             'nomeClasseGrupo': 'Nome Classe/Grupo'
         };
 
+        // Inicialização do DataTable
+        let dataTable;
+
         $(document).ready(() => {
             // Inicializa os selects (vazios inicialmente)
             initializeSelects();
@@ -277,6 +299,31 @@
                     updateOtherSelects();
                     searchDatabase();
                 });
+            });
+
+            // Inicializa o DataTable
+            dataTable = $('#resultTable').DataTable({
+                "columns": [
+                    { "data": "Nome da Futura Contratação" },
+                    { "data": "Categoria da contratação" },
+                    { "data": "Área requisitante" },
+                    { "data": "Nº DFD" },
+                    { "data": "Nome Classe/Grupo" },
+                    { "data": "Código Classe/Grupo" },
+                    { 
+                        "data": "Valor Total",
+                        // Removida a formatação para evitar NaN
+                        "render": function(data, type, row) {
+                            return data !== undefined && data !== null ? data : '';
+                        }
+                    },
+                    { "data": "Identificador da Futura Contratação" }
+                ],
+                "order": [], // Desativa a ordenação inicial
+                "language": {
+                    "url": "//cdn.datatables.net/plug-ins/1.13.4/i18n/Portuguese-Brasil.json",
+                    "search": "Busque dentro dos resultados:" // Renomeia o campo de busca
+                }
             });
 
             // Botão para baixar dados atualizados
@@ -353,23 +400,27 @@
         }
 
         /**
-         * Exibe os resultados filtrados na tabela
+         * Exibe os resultados filtrados na tabela usando DataTables
          * @param {Array} data - Dados filtrados
          */
         function displayResults(data) {
-            const tbody = $('#resultTable tbody');
-            tbody.empty();
+            // Processa cada linha para garantir que todos os campos existam
+            const processedData = data.map(row => ({
+                'Nome da Futura Contratação': row['Nome da Futura Contratação'] || '',
+                'Categoria da contratação': row['Categoria da contratação'] || '',
+                'Área requisitante': row['Área requisitante'] || '',
+                'Nº DFD': row['Nº DFD'] || '',
+                'Nome Classe/Grupo': row['Nome Classe/Grupo'] || '',
+                'Código Classe/Grupo': row['Código Classe/Grupo'] || '',
+                'Valor Total': row['Valor Total'] !== undefined ? row['Valor Total'] : '', // Novo campo sem formatação
+                'Identificador da Futura Contratação': row['Identificador da Futura Contratação'] || ''
+            }));
 
-            data.forEach(row => {
-                const tr = $('<tr>');
-                fields.forEach(field => {
-                    tr.append($('<td>').text(row[fieldMappings[field]] || ''));
-                });
-                tr.append($('<td>').text(row['Código Classe/Grupo'] || ''));
-                tr.append($('<td>').text(row['Identificador da Futura Contratação'] || ''));
-                
-                tbody.append(tr);
-            });
+            // Limpa os dados atuais do DataTable
+            dataTable.clear();
+
+            // Adiciona os novos dados
+            dataTable.rows.add(processedData).draw();
 
             // Mostrar ou esconder o botão de download com base na presença de resultados
             $('#downloadBtn').toggle(data.length > 0);
@@ -420,7 +471,18 @@ V) Identificador da Futura Contratação: ${item['Identificador da Futura Contra
                 )
             );
 
-            const csv = Papa.unparse(filteredData);
+            const processedData = filteredData.map(row => ({
+                'Nome da Futura Contratação': row['Nome da Futura Contratação'] || '',
+                'Categoria da contratação': row['Categoria da contratação'] || '',
+                'Área requisitante': row['Área requisitante'] || '',
+                'Nº DFD': row['Nº DFD'] || '',
+                'Nome Classe/Grupo': row['Nome Classe/Grupo'] || '',
+                'Código Classe/Grupo': row['Código Classe/Grupo'] || '',
+                'Valor Total': row['Valor Total'] !== undefined ? row['Valor Total'] : '', // Novo campo sem formatação
+                'Identificador da Futura Contratação': row['Identificador da Futura Contratação'] || ''
+            }));
+
+            const csv = Papa.unparse(processedData);
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
             if (link.download !== undefined) {
@@ -479,7 +541,17 @@ V) Identificador da Futura Contratação: ${item['Identificador da Futura Contra
                     return { ...pcaRow, ...pca2Row };
                 });
 
-                csvData = unifiedData;
+                // Processa os dados para garantir que todos os campos existam
+                csvData = unifiedData.map(row => ({
+                    'Nome da Futura Contratação': row['Nome da Futura Contratação'] || '',
+                    'Categoria da contratação': row['Categoria da contratação'] || '',
+                    'Área requisitante': row['Área requisitante'] || '',
+                    'Nº DFD': row['Nº DFD'] || '',
+                    'Nome Classe/Grupo': row['Nome Classe/Grupo'] || '',
+                    'Código Classe/Grupo': row['Código Classe/Grupo'] || '',
+                    'Valor Total': row['Valor Total'] !== undefined ? row['Valor Total'] : '', // Novo campo sem formatação
+                    'Identificador da Futura Contratação': row['Identificador da Futura Contratação'] || ''
+                }));
                 
                 initializeSelects();
                 searchDatabase(); // Exibir todos os dados inicialmente
@@ -563,7 +635,7 @@ V) Identificador da Futura Contratação: ${item['Identificador da Futura Contra
                     <ul>
                         <li><strong>Código Unidade:</strong> ${item.codigoUnidade}</li>
                         <li><strong>Nome Unidade:</strong> ${item.nomeUnidade}</li>
-                        <li><strong>Valor Total:</strong> ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.valorTotal)}</li>
+                        <li><strong>Valor Total:</strong> ${item.valorTotal}</li> <!-- Exibido sem formatação -->
                         <li><strong>Ano PCA:</strong> ${item.anoPca}</li>
                         <li><strong>Quantidade:</strong> ${item.quantidade}</li>
                         <li><strong>Número Controle PNCP:</strong> ${item.numeroControlePNCP}</li>
