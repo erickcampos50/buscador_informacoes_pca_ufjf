@@ -447,7 +447,7 @@
 
             data.forEach(item => {
                 const reportItem = $('<div>').addClass('report-item');
-                reportItem.append($('<h3>').text(item['Nome da Futura Contratação'] || 'N/A'));
+                reportItem.append($('<b>').text(item['Nome da Futura Contratação'] || 'N/A'));
                 
                 const report = `
 I) ID PCA no PNCP: ${consolidatedData ? consolidatedData[0].numeroControlePNCP : 'N/A'};
