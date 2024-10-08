@@ -92,16 +92,19 @@
             }
         }
 
-        /* Estilização do Checkbox de Ajuda */
+        /* Estilização do Switch de Ajuda */
         .help-toggle {
             display: flex;
             align-items: center;
             margin-bottom: 20px;
         }
-        .help-toggle input[type="checkbox"] {
+        .help-toggle .form-check-input {
             margin-right: 10px;
-            width: 20px;
-            height: 20px;
+            width: 50px;
+            height: 25px;
+        }
+        .help-toggle .form-check-label {
+            margin-bottom: 0;
         }
 
         /* Créditos */
@@ -146,10 +149,10 @@
 </head>
 <body>
     <div class="container mt-5 position-relative">
-        <!-- Checkbox para mostrar/ocultar textos de ajuda -->
-        <div class="help-toggle">
-            <input type="checkbox" id="toggleHelpCheckbox" aria-label="Mostrar textos de ajuda">
-            <label for="toggleHelpCheckbox">Mostrar textos de ajuda</label>
+        <!-- Switch para mostrar/ocultar textos de ajuda -->
+        <div class="form-check form-switch help-toggle">
+            <input class="form-check-input" type="checkbox" id="toggleHelpSwitch" aria-label="Mostrar textos de ajuda">
+            <label class="form-check-label" for="toggleHelpSwitch">Mostrar textos de ajuda</label>
         </div>
 
         <!-- Título principal -->
@@ -240,6 +243,7 @@
                             <th>Nome Classe/Grupo</th>
                             <th>Código Classe/Grupo</th>
                             <th>Valor Total</th> <!-- Renomeado -->
+                            <th>Id do item no PCA</th> <!-- Nova Coluna -->
                             <th>Identificador da Futura Contratação</th>
                         </tr>
                     </thead>
@@ -282,6 +286,11 @@
             'nomeClasseGrupo': 'Nome Classe/Grupo'
         };
 
+        // Constantes para Cache
+        const CACHE_KEY = 'unifiedDataCache';
+        const CACHE_TIMESTAMP_KEY = 'unifiedDataCacheTimestamp';
+        const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 horas em milissegundos
+
         // Inicialização do DataTable
         let dataTable;
 
@@ -319,6 +328,7 @@
                             return data !== undefined && data !== null ? data : '';
                         }
                     },
+                    { "data": "Id do item no PCA" }, // Nova Coluna
                     { "data": "Identificador da Futura Contratação" }
                 ],
                 "order": [], // Desativa a ordenação inicial
@@ -331,8 +341,8 @@
             // Botão para baixar dados atualizados
             $('#unifyButton').on('click', unifyCSVFiles);
 
-            // Checkbox para mostrar/ocultar textos de ajuda
-            $('#toggleHelpCheckbox').on('change', function() {
+            // Switch para mostrar/ocultar textos de ajuda
+            $('#toggleHelpSwitch').on('change', function() {
                 if ($(this).is(':checked')) {
                     $('.help-text').show();
                 } else {
@@ -342,6 +352,9 @@
 
             // Botão para download dos resultados
             $('#downloadBtn').on('click', downloadResults);
+
+            // Verifica se há dados em cache ao carregar a página
+            checkCacheOnLoad();
         });
 
         /**
@@ -419,6 +432,7 @@
                 'Nome Classe/Grupo': row['Nome Classe/Grupo'] || '',
                 'Código Classe/Grupo': row['Código Classe/Grupo'] || '',
                 'Valor Total': row['Valor Total'] !== undefined ? row['Valor Total'] : '', // Novo campo sem formatação
+                'Id do item no PCA': row['Id do item no PCA'] || '', // Nova Coluna
                 'Identificador da Futura Contratação': row['Identificador da Futura Contratação'] || ''
             }));
 
@@ -447,7 +461,7 @@
 
             data.forEach(item => {
                 const reportItem = $('<div>').addClass('report-item');
-                reportItem.append($('<b>').text(item['Nome da Futura Contratação'] || 'N/A'));
+                reportItem.append($('<h3>').text(item['Nome da Futura Contratação'] || 'N/A'));
                 
                 const report = `
 I) ID PCA no PNCP: ${consolidatedData ? consolidatedData[0].numeroControlePNCP : 'N/A'};
@@ -485,6 +499,7 @@ V) Identificador da Futura Contratação: ${item['Identificador da Futura Contra
                 'Nome Classe/Grupo': row['Nome Classe/Grupo'] || '',
                 'Código Classe/Grupo': row['Código Classe/Grupo'] || '',
                 'Valor Total': row['Valor Total'] !== undefined ? row['Valor Total'] : '', // Novo campo sem formatação
+                'Id do item no PCA': row['Id do item no PCA'] || '', // Nova Coluna
                 'Identificador da Futura Contratação': row['Identificador da Futura Contratação'] || ''
             }));
 
@@ -523,7 +538,7 @@ V) Identificador da Futura Contratação: ${item['Identificador da Futura Contra
         }
 
         /**
-         * Unifica os arquivos CSV e processa os dados
+         * Unifica os arquivos CSV e processa os dados com cache de 24 horas
          */
         async function unifyCSVFiles() {
             $('#loadingMessage').show();
@@ -531,38 +546,54 @@ V) Identificador da Futura Contratação: ${item['Identificador da Futura Contra
             $('#unifyButton').prop('disabled', true);
 
             try {
-                const [pcaData, pca2Data, fetchedConsolidatedData] = await Promise.all([
-                    fetchGoogleSheetCSV(),
-                    fetchPNCPCSV(),
-                    fetchConsolidatedData()
-                ]);
+                // Verifica se há dados em cache e se ainda são válidos
+                const cachedData = getCachedData();
+                if (cachedData) {
+                    csvData = cachedData.data;
+                    consolidatedData = cachedData.consolidatedData;
+                    initializeSelects();
+                    searchDatabase(); // Exibir todos os dados inicialmente
+                    displayConsolidatedData(consolidatedData);
+                    showAlert('Dados carregados a partir do cache.');
+                } else {
+                    // Se não há cache ou está expirado, baixar os dados
+                    const [pcaData, pca2Data, fetchedConsolidatedData] = await Promise.all([
+                        fetchGoogleSheetCSV(),
+                        fetchPNCPCSV(),
+                        fetchConsolidatedData()
+                    ]);
 
-                showAlert('Dados fornecidos pela COSUP foram baixados com sucesso.');
-                showAlert('Dados fornecidos pela planilha do PNCP foram baixados com sucesso.');
+                    showAlert('Dados fornecidos pela COSUP foram baixados com sucesso.');
+                    showAlert('Dados fornecidos pela planilha do PNCP foram baixados com sucesso.');
 
-                consolidatedData = fetchedConsolidatedData;
+                    consolidatedData = fetchedConsolidatedData;
 
-                const unifiedData = pcaData.map(pcaRow => {
-                    const pca2Row = pca2Data.find(row => '153061-' + pcaRow['Número da contratação'] === row['Identificador da Futura Contratação']);
-                    return { ...pcaRow, ...pca2Row };
-                });
+                    const unifiedData = pcaData.map(pcaRow => {
+                        const pca2Row = pca2Data.find(row => '153061-' + pcaRow['Número da contratação'] === row['Identificador da Futura Contratação']);
+                        return { ...pcaRow, ...pca2Row };
+                    });
 
-                // Processa os dados para garantir que todos os campos existam
-                csvData = unifiedData.map(row => ({
-                    'Nome da Futura Contratação': row['Nome da Futura Contratação'] || '',
-                    'Categoria da contratação': row['Categoria da contratação'] || '',
-                    'Área requisitante': row['Área requisitante'] || '',
-                    'Nº DFD': row['Nº DFD'] || '',
-                    'Nome Classe/Grupo': row['Nome Classe/Grupo'] || '',
-                    'Código Classe/Grupo': row['Código Classe/Grupo'] || '',
-                    'Valor Total': row['Valor Total'] !== undefined ? row['Valor Total'] : '', // Novo campo sem formatação
-                    'Identificador da Futura Contratação': row['Identificador da Futura Contratação'] || ''
-                }));
-                
-                initializeSelects();
-                searchDatabase(); // Exibir todos os dados inicialmente
-                displayConsolidatedData(consolidatedData);
-                showAlert('Dados unificados com sucesso!');
+                    // Processa os dados para garantir que todos os campos existam
+                    csvData = unifiedData.map(row => ({
+                        'Nome da Futura Contratação': row['Nome da Futura Contratação'] || '',
+                        'Categoria da contratação': row['Categoria da contratação'] || '',
+                        'Área requisitante': row['Área requisitante'] || '',
+                        'Nº DFD': row['Nº DFD'] || '',
+                        'Nome Classe/Grupo': row['Nome Classe/Grupo'] || '',
+                        'Código Classe/Grupo': row['Código Classe/Grupo'] || '',
+                        'Valor Total': row['Valor Total'] !== undefined ? row['Valor Total'] : '', // Novo campo sem formatação
+                        'Id do item no PCA': row['Id do item no PCA'] || '', // Nova Coluna
+                        'Identificador da Futura Contratação': row['Identificador da Futura Contratação'] || ''
+                    }));
+
+                    // Armazena os dados unificados no cache
+                    setCachedData(csvData, consolidatedData);
+
+                    initializeSelects();
+                    searchDatabase(); // Exibir todos os dados inicialmente
+                    displayConsolidatedData(consolidatedData);
+                    showAlert('Dados unificados com sucesso e armazenados no cache!');
+                }
             } catch (error) {
                 console.error('Erro ao unificar arquivos:', error);
                 showAlert('Ocorreu um erro ao baixar ou unificar os dados. Por favor, tente novamente.', 'danger');
@@ -571,6 +602,56 @@ V) Identificador da Futura Contratação: ${item['Identificador da Futura Contra
                 $('#loadingIndicator').hide();
                 $('#unifyButton').prop('disabled', false);
             }
+        }
+
+        /**
+         * Verifica o cache ao carregar a página e carrega os dados se estiverem válidos
+         */
+        function checkCacheOnLoad() {
+            const cachedData = getCachedData();
+            if (cachedData) {
+                csvData = cachedData.data;
+                consolidatedData = cachedData.consolidatedData;
+                initializeSelects();
+                searchDatabase(); // Exibir todos os dados inicialmente
+                displayConsolidatedData(consolidatedData);
+                showAlert('Dados carregados a partir do cache.');
+            }
+        }
+
+        /**
+         * Armazena os dados unificados no cache com timestamp
+         * @param {Array} data - Dados unificados
+         * @param {Object} consolidatedData - Dados consolidados
+         */
+        function setCachedData(data, consolidatedData) {
+            const cacheObject = {
+                data: data,
+                consolidatedData: consolidatedData
+            };
+            localStorage.setItem(CACHE_KEY, JSON.stringify(cacheObject));
+            localStorage.setItem(CACHE_TIMESTAMP_KEY, Date.now());
+        }
+
+        /**
+         * Recupera os dados do cache se estiverem válidos
+         * @returns {Object|null} - Dados unificados e consolidados ou null se inválido
+         */
+        function getCachedData() {
+            const cachedData = localStorage.getItem(CACHE_KEY);
+            const cachedTimestamp = localStorage.getItem(CACHE_TIMESTAMP_KEY);
+
+            if (cachedData && cachedTimestamp) {
+                const age = Date.now() - cachedTimestamp;
+                if (age < CACHE_DURATION) {
+                    return JSON.parse(cachedData);
+                } else {
+                    // Cache expirado
+                    localStorage.removeItem(CACHE_KEY);
+                    localStorage.removeItem(CACHE_TIMESTAMP_KEY);
+                }
+            }
+            return null;
         }
 
         /**
