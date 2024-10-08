@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buscador no Plano de Contratações Anual da UFJF</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.0/papaparse.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <style>
+        .select2-container {
+            width: 100% !important;
+        }
+        .select2-selection {
+            height: 38px !important;
+            border: 1px solid #ced4da !important;
+            border-radius: 0.25rem !important;
+        }
+        .select2-selection__rendered {
+            line-height: 36px !important;
+        }
+        .select2-container .select2-selection--single .select2-selection__rendered {
+            padding-left: 12px !important;
+        }
+        .select2-selection__arrow {
+            height: 36px !important;
+        }
+        #report {
+            font-family: Arial, sans-serif;
+            border: 1px solid #ddd;
+            padding: 15px;
+            background-color: white;
+        }
+        .report-item {
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+        .report-item h3 {
+            color: #007bff;
+            margin-bottom: 10px;
+        }
+        #consolidatedData {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 0.25rem;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        #consolidatedData h2 {
+            color: #007bff;
+            margin-bottom: 15px;
+        }
+        .help-text {
+            color: #6c757d;
+            font-size: 0.875em;
+            margin-top: 0.25rem;
+        }
+        .combobox-title {
+            font-weight: bold;
+            margin-bottom: 0.25rem;
+        }
+        @media (max-width: 768px) {
+            .col-md-6 {
+                margin-bottom: 1rem;
+            }
+        }
+        .toggle-help {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+        }
+        .credits {
+            margin-top: 50px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+        .alert {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5 position-relative">
+        <button id="toggleHelpText" class="btn btn-sm btn-outline-secondary toggle-help">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-question-circle" viewBox="0 0 16 16">
+                <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
+                <path d="M5.255 5.786a.237.237 0 0 0 .241.247h.825c.138 0 .248-.113.266-.25.09-.656.54-1.134 1.342-1.134.686 0 1.314.343 1.314 1.168 0 .635-.374.927-.965 1.371-.673.489-1.206 1.06-1.168 1.987l.003.217a.25.25 0 0 0 .25.246h.811a.25.25 0 0 0 .25-.25v-.105c0-.718.273-.927 1.01-1.486.609-.463 1.244-.977 1.244-2.056 0-1.511-1.276-2.241-2.673-2.241-1.267 0-2.655.59-2.75 2.286zm1.557 5.763c0 .533.425.927 1.01.927.609 0 1.028-.394 1.028-.927 0-.552-.42-.94-1.029-.94-.584 0-1.009.388-1.009.94z"/>
+            </svg>
+        </button>
+
+        <h1 class="mb-4">Buscador no Plano de Contratações Anual da UFJF</h1>
+        
+        <div class="alert alert-info" role="alert">
+            <h4 class="alert-heading">Sobre esta ferramenta</h4>
+            <p>Este buscador visa facilitar uma etapa de busca e extração de informações na confecção de termos de referência da UFJF. Ele apresenta todas as informações internas da UFJF disponibilizadas pela COSUP e também os dados fornecidos pelo Portal Nacional de Contratações Públicas num único lugar.</p>
+            <hr>
+            <p>Como as informações fornecidas pela COSUP e também pelo PNCP estão sempre em atualização, é preciso baixar os dados atualizados antes de cada uso.</p>
+            <p class="mb-0">Use os campos de pesquisa abaixo para filtrar as informações desejadas.</p>
+        </div>
+
+        <div id="alertMessages"></div>
+
+        <div class="mb-4">
+            <button id="unifyButton" class="btn btn-primary">Baixar dados atualizados</button>
+            <div id="loadingMessage" class="mt-2" style="display: none;">Carregando e unificando arquivos...</div>
+        </div>
+
+        <div id="consolidatedData" style="display: none;">
+            <h2>Descrição sucinta no PNCP</h2>
+            <div id="consolidatedDataContent"></div>
+        </div>
+
+        <form id="searchForm">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="nomeFuturaContratacao" class="combobox-title">Nome da Futura Contratação</label>
+                    <select class="form-select" id="nomeFuturaContratacao">
+                        <option value="">Selecione</option>
+                    </select>
+                    <div class="help-text" style="display: none;">Selecione o nome da futura contratação.</div>
+                </div>
+                <div class="col-md-6">
+                    <label for="categoriaContratacao" class="combobox-title">Categoria da contratação</label>
+                    <select class="form-select" id="categoriaContratacao">
+                        <option value="">Selecione</option>
+                    </select>
+                    <div class="help-text" style="display: none;">Escolha a categoria da contratação.</div>
+                </div>
+                <div class="col-md-6">
+                    <label for="areaRequisitante" class="combobox-title">Área requisitante</label>
+                    <select class="form-select" id="areaRequisitante">
+                        <option value="">Selecione</option>
+                    </select>
+                    <div class="help-text" style="display: none;">Selecione a área requisitante.</div>
+                </div>
+                <div class="col-md-6">
+                    <label for="numeroDFD" class="combobox-title">Nº DFD</label>
+                    <select class="form-select" id="numeroDFD">
+                        <option value="">Selecione</option>
+                    </select>
+                    <div class="help-text" style="display: none;">Escolha o número do DFD.</div>
+                </div>
+                <div class="col-md-6">
+                    <label for="nomeClasseGrupo" class="combobox-title">Nome Classe/Grupo</label>
+                    <select class="form-select" id="nomeClasseGrupo">
+                        <option value="">Selecione</option>
+                    </select>
+                        <div class="help-text" style="display: none;">Selecione o nome da classe ou grupo.</div>
+                </div>
+                <!-- Removidos os botões "Pesquisar" e "Limpar Seleções" -->
+            </div>
+        </form>
+
+        <div class="mt-5">
+            <h2>Resultados da Pesquisa</h2>
+            <div class="table-responsive">
+                <table class="table table-striped" id="resultTable">
+                    <thead>
+                        <tr>
+                            <th>Nome da Futura Contratação</th>
+                            <th>Categoria da contratação</th>
+                            <th>Área requisitante</th>
+                            <th>Nº DFD</th>
+                            <th>Nome Classe/Grupo</th>
+                            <th>Código Classe/Grupo</th>
+                            <th>Identificador da Futura Contratação</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="mt-3">
+            <button id="downloadBtn" class="btn btn-success" style="display: none;">Download Resultados Completos</button>
+            <div class="help-text" style="display: none;">Clique aqui para baixar os resultados da filtragem em formato CSV. Você pode usar este arquivo para fazer suas próprias manipulações dos dados.</div>
+        </div>
+
+        <div class="mt-5">
+            <h2>Relatório para o Termo de Referência</h2>
+            <div id="report"></div>
+        </div>
+
+        <div class="credits">
+            <p>Este buscador foi desenvolvido por Erick C. Campos <a href="mailto:erick.campos@ufjf.br">erick.campos@ufjf.br</a>, sendo disponibilizado sem nenhuma garantia. A utilização da mesma é de responsabilidade do usuário, e os resultados fornecidos são aproximados, com base nas informações disponíveis nas fontes mencionadas.</p>
+        </div>
+    </div>
+
+    <script>
+        let csvData = [];
+        let consolidatedData = null;
+        const fields = ['nomeFuturaContratacao', 'categoriaContratacao', 'areaRequisitante', 'numeroDFD', 'nomeClasseGrupo'];
+        const fieldMappings = {
+            'nomeFuturaContratacao': 'Nome da Futura Contratação',
+            'categoriaContratacao': 'Categoria da contratação',
+            'areaRequisitante': 'Área requisitante',
+            'numeroDFD': 'Nº DFD',
+            'nomeClasseGrupo': 'Nome Classe/Grupo'
+        };
+
+        $(document).ready(function() {
+            initializeSelects();
+
+            fields.forEach(field => {
+                $(`#${field}`).select2({
+                    placeholder: 'Selecione',
+                    allowClear: true
+                });
+
+                $(`#${field}`).on('select2:select select2:unselect', function (e) {
+                    updateOtherSelects();
+                    searchDatabase(); // Aplicar filtros em tempo real
+                });
+            });
+
+            // Removido o manipulador de submit do formulário
+            // $('#searchForm').on('submit', function(e) {
+            //     e.preventDefault();
+            //     searchDatabase();
+            // });
+
+            $('#downloadBtn').on('click', function() {
+                downloadResults();
+            });
+
+            // Removido o manipulador do botão "Limpar Seleções"
+            // $('#clearBtn').on('click', function() {
+            //     clearSelections();
+            // });
+
+            $('#unifyButton').on('click', unifyCSVFiles);
+
+            $('#toggleHelpText').on('click', function() {
+                $('.help-text').toggle();
+            });
+        });
+
+        function initializeSelects() {
+            fields.forEach(field => {
+                const uniqueValues = [...new Set(csvData.map(item => item[fieldMappings[field]]))];
+                const select = $(`#${field}`);
+                select.empty().append(new Option('', ''));
+                uniqueValues.forEach(value => {
+                    if (value) {
+                        select.append(new Option(value, value));
+                    }
+                });
+                select.trigger('change');
+            });
+        }
+
+        function updateOtherSelects() {
+            const selectedValues = {};
+            fields.forEach(field => {
+                selectedValues[field] = $(`#${field}`).val();
+            });
+
+            const filteredData = csvData.filter(row => 
+                Object.entries(selectedValues).every(([field, value]) => 
+                    !value || row[fieldMappings[field]] === value
+                )
+            );
+
+            fields.forEach(field => {
+                const select = $(`#${field}`);
+                const currentValue = select.val();
+                select.empty().append(new Option('', ''));
+
+                const uniqueValues = [...new Set(filteredData.map(item => item[fieldMappings[field]]))];
+                uniqueValues.forEach(value => {
+                    if (value) {
+                        select.append(new Option(value, value));
+                    }
+                });
+
+                select.val(currentValue).trigger('change');
+            });
+        }
+
+        function searchDatabase() {
+            const selectedValues = {};
+            fields.forEach(field => {
+                selectedValues[field] = $(`#${field}`).val();
+            });
+
+            const filteredData = csvData.filter(row => 
+                Object.entries(selectedValues).every(([field, value]) => 
+                    !value || row[fieldMappings[field]] === value
+                )
+            );
+
+            displayResults(filteredData);
+            generateReport(filteredData);
+        }
+
+        function displayResults(data) {
+            const tbody = $('#resultTable tbody');
+            tbody.empty();
+
+            data.forEach(row => {
+                const tr = $('<tr>');
+                fields.forEach(field => {
+                    tr.append($('<td>').text(row[fieldMappings[field]] || ''));
+                });
+                tr.append($('<td>').text(row['Código Classe/Grupo'] || ''));
+                tr.append($('<td>').text(row['Identificador da Futura Contratação'] || ''));
+                
+                tbody.append(tr);
+            });
+
+            $('#downloadBtn').toggle(data.length > 0);
+        }
+
+        function generateReport(data) {
+            const reportContainer = $('#report');
+            reportContainer.empty();
+
+            if (data.length === 0) {
+                reportContainer.text('Nenhum resultado encontrado.');
+                return;
+            }
+
+            data.forEach(item => {
+                const reportItem = $('<div>').addClass('report-item');
+                reportItem.append($('<h3>').text(item['Nome da Futura Contratação'] || 'N/A'));
+                
+                const report = `
+I) ID PCA no PNCP: ${consolidatedData ? consolidatedData[0].numeroControlePNCP : 'N/A'};
+II) Data de publicação no PNCP: ${consolidatedData ? new Date(consolidatedData[0].dataPublicacaoPncp).toLocaleDateString('pt-BR') : 'N/A'};
+III) Id do item no PCA: ${item['Id do item no PCA'] || 'N/A'};
+IV) Classe/Grupo: ${item['Código Classe/Grupo'] || 'N/A'};
+V) Identificador da Futura Contratação: ${item['Identificador da Futura Contratação'] || 'N/A'}.
+                `;
+
+                reportItem.append($('<pre>').text(report));
+                reportContainer.append(reportItem);
+            });
+        }
+
+        function downloadResults() {
+            const csv = Papa.unparse(csvData);
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            if (link.download !== undefined) {
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', 'resultados_completos.csv');
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        }
+
+        // Mantém a função de limpar seleções para uso interno, se necessário
+        function clearSelections() {
+            fields.forEach(field => {
+                $(`#${field}`).val(null).trigger('change');
+            });
+            $('#resultTable tbody').empty();
+            $('#report').empty();
+            $('#downloadBtn').hide();
+        }
+
+        function showAlert(message, type = 'success') {
+            const alertDiv = $('<div>').addClass(`alert alert-${type} alert-dismissible fade show`).attr('role', 'alert');
+            alertDiv.html(`
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `);
+            $('#alertMessages').append(alertDiv);
+            
+            // Auto-dismiss after 5 segundos
+            setTimeout(() => {
+                alertDiv.alert('close');
+            }, 5000);
+        }
+
+        async function unifyCSVFiles() {
+            $('#loadingMessage').show();
+            $('#unifyButton').prop('disabled', true);
+
+            try {
+                const [pcaData, pca2Data, fetchedConsolidatedData] = await Promise.all([
+                    fetchGoogleSheetCSV(),
+                    fetchPNCPCSV(),
+                    fetchConsolidatedData()
+                ]);
+
+                showAlert('Dados fornecidos pela COSUP foram baixados com sucesso.');
+                showAlert('Dados fornecidos pela planilha do PNCP foram baixados com sucesso.');
+
+                consolidatedData = fetchedConsolidatedData;
+
+                const unifiedData = pcaData.map(pcaRow => {
+                    const pca2Row = pca2Data.find(row => '153061-' + pcaRow['Número da contratação'] === row['Identificador da Futura Contratação']);
+                    return { ...pcaRow, ...pca2Row };
+                });
+
+                csvData = unifiedData;
+                
+                initializeSelects();
+                searchDatabase(); // Exibir todos os dados inicialmente
+                displayConsolidatedData(consolidatedData);
+                showAlert('Dados unificados com sucesso!');
+            } catch (error) {
+                console.error('Erro ao unificar arquivos:', error);
+                showAlert('Ocorreu um erro ao baixar ou unificar os dados. Por favor, tente novamente.', 'danger');
+            } finally {
+                $('#loadingMessage').hide();
+                $('#unifyButton').prop('disabled', false);
+            }
+        }
+
+        async function fetchGoogleSheetCSV() {
+            const sheetId = '128CkGrXGUsSH8tGBRb8uMIk3a_glsLhVwuAaFgch2eY';
+            const sheetGid = '1714085996';
+            const url = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${sheetGid}`;
+
+            const response = await fetch(url);
+            const text = await response.text();
+            return new Promise(resolve => {
+                Papa.parse(text, {
+                    header: true,
+                    complete: result => resolve(result.data)
+                });
+            });
+        }
+
+        async function fetchPNCPCSV() {
+            const url = 'https://pncp.gov.br/api/pncp/v1/orgaos/21195755000169/pca/2024/csv';
+            const response = await fetch(url);
+            const text = await response.text();
+            return new Promise(resolve => {
+                Papa.parse(text, {
+                    header: true,
+                    complete: result => resolve(result.data)
+                });
+            });
+        }
+
+        async function fetchConsolidatedData() {
+            const url = 'https://pncp.gov.br/api/pncp/v1/orgaos/21195755000169/pca/2024/consolidado/unidades?pagina=1&tamanhoPagina=5';
+            const response = await fetch(url);
+            return response.json();
+        }
+
+        function displayConsolidatedData(data) {
+            const container = $('#consolidatedDataContent');
+            container.empty();
+
+            if (data && data.length > 0) {
+                const item = data[0]; // Supondo que estamos usando o primeiro item para a descrição
+                const content = `
+                    <ul>
+                        <li><strong>Código Unidade:</strong> ${item.codigoUnidade}</li>
+                        <li><strong>Nome Unidade:</strong> ${item.nomeUnidade}</li>
+                        <li><strong>Valor Total:</strong> ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.valorTotal)}</li>
+                        <li><strong>Ano PCA:</strong> ${item.anoPca}</li>
+                        <li><strong>Quantidade:</strong> ${item.quantidade}</li>
+                        <li><strong>Número Controle PNCP:</strong> ${item.numeroControlePNCP}</li>
+                        <li><strong>Data Publicação PNCP:</strong> ${new Date(item.dataPublicacaoPncp).toLocaleDateString('pt-BR')}</li>
+                    </ul>
+                `;
+                container.html(content);
+            } else {
+                container.html('<p>Nenhum dado consolidado disponível.</p>');
+            }
+
+            $('#consolidatedData').show();
+        }
+    </script>
+</body>
+</html>
