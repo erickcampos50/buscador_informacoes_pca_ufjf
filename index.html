@@ -659,8 +659,8 @@ V) Identificador da Futura Contratação: ${item['Identificador da Futura Contra
          * @returns {Promise<Array>} - Dados do CSV
          */
         async function fetchGoogleSheetCSV() {
-            const sheetId = '128CkGrXGUsSH8tGBRb8uMIk3a_glsLhVwuAaFgch2eY';
-            const sheetGid = '1714085996';
+            const sheetId = '1Y1XnEhnl6fw2Y-nrrDMe_Ql83swJiO4Sj52wxGeisLM';
+            const sheetGid = '1871640994';
             const url = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${sheetGid}`;
 
             const response = await fetch(url);
@@ -681,7 +681,7 @@ V) Identificador da Futura Contratação: ${item['Identificador da Futura Contra
          * @returns {Promise<Array>} - Dados do CSV
          */
         async function fetchPNCPCSV() {
-            const url = 'https://pncp.gov.br/api/pncp/v1/orgaos/21195755000169/pca/2024/csv';
+            const url = 'https://pncp.gov.br/api/pncp/v1/orgaos/21195755000169/pca/2025/csv';
             const response = await fetch(url);
             if (!response.ok) {
                 throw new Error('Erro ao baixar dados do PNCP.');
@@ -700,7 +700,7 @@ V) Identificador da Futura Contratação: ${item['Identificador da Futura Contra
          * @returns {Promise<Object>} - Dados consolidados
          */
         async function fetchConsolidatedData() {
-            const url = 'https://pncp.gov.br/api/pncp/v1/orgaos/21195755000169/pca/2024/consolidado/unidades?pagina=1&tamanhoPagina=5';
+            const url = 'https://pncp.gov.br/api/pncp/v1/orgaos/21195755000169/pca/2025/consolidado/unidades?pagina=1&tamanhoPagina=5';
             const response = await fetch(url);
             if (!response.ok) {
                 throw new Error('Erro ao baixar dados consolidados.');
